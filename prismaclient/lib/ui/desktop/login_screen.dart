@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../../models.dart'; // Import User model
 
 class LoginScreen extends StatefulWidget {
-  final VoidCallback onLoginSuccess;
+  // UPDATED: Callback now expects a User object
+  final void Function(User) onLoginSuccess;
   const LoginScreen({super.key, required this.onLoginSuccess});
 
   @override
@@ -36,8 +38,9 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = '';
     });
 
+    final isLogin = _authMode == AuthMode.login;
     final url = Uri.parse(
-      _authMode == AuthMode.login
+      isLogin
         ? 'http://localhost:8080/api/login'
         : 'http://localhost:8080/api/register'
     );
@@ -52,7 +55,18 @@ class _LoginScreenState extends State<LoginScreen> {
         }),
       );
       if (response.statusCode == 200) {
-        widget.onLoginSuccess();
+        if (isLogin) {
+          // On successful login, parse the user and call the callback
+          final userData = json.decode(response.body);
+          final user = User.fromJson(userData);
+          widget.onLoginSuccess(user);
+        } else {
+          // On successful register, switch to login mode with a message
+          setState(() {
+            _authMode = AuthMode.login;
+            _error = 'Registration successful! Please sign in.';
+          });
+        }
       } else {
         setState(() {
           _error = utf8.decode(response.bodyBytes);

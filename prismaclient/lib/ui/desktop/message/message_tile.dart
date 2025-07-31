@@ -24,6 +24,9 @@ class MessageTile extends StatelessWidget {
           CircleAvatar(
             backgroundColor: me ? Colors.tealAccent : Colors.blueGrey,
             radius: 18,
+            backgroundImage: avatar != null
+                ? NetworkImage('http://localhost:8080$avatar')
+                : null,
             child: avatar == null
                 ? Text(username[0], style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold))
                 : null,

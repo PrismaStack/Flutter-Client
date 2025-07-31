@@ -1,24 +1,27 @@
 import 'package:flutter/material.dart';
-import 'ui/desktop/login.dart';
-import 'ui/desktop/prisma_desktop_app.dart';
+import 'models.dart'; // Import the User model
+import 'ui/desktop/login_screen.dart';
+import 'ui/desktop/prisma_desktop_app.dart'; // Import your main desktop app
 
 void main() {
-  runApp(const PrismaAppRoot());
+  runApp(const MyApp());
 }
 
-class PrismaAppRoot extends StatefulWidget {
-  const PrismaAppRoot({super.key});
+class MyApp extends StatefulWidget {
+  const MyApp({super.key});
 
   @override
-  State<PrismaAppRoot> createState() => _PrismaAppRootState();
+  State<MyApp> createState() => _MyAppState();
 }
 
-class _PrismaAppRootState extends State<PrismaAppRoot> {
-  bool _loggedIn = false;
+class _MyAppState extends State<MyApp> {
+  // UPDATED: Store the full User object, not just a boolean
+  User? _currentUser;
 
-  void _onLoginSuccess() {
+  // UPDATED: The handler now receives the User object on success
+  void _handleLoginSuccess(User user) {
     setState(() {
-      _loggedIn = true;
+      _currentUser = user;
     });
   }
 
@@ -29,16 +32,15 @@ class _PrismaAppRootState extends State<PrismaAppRoot> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.tealAccent,
-          brightness: Brightness.dark,
-        ),
+        primarySwatch: Colors.teal,
+        scaffoldBackgroundColor: const Color(0xFF21242E),
         fontFamily: 'Inter',
         useMaterial3: true,
       ),
-      home: _loggedIn
-          ? const PrismaDesktopHome()
-          : LoginScreen(onLoginSuccess: _onLoginSuccess),
+      // UPDATED: Pass the currentUser to the home screen
+      home: _currentUser != null
+          ? PrismaDesktopHome(currentUser: _currentUser!)
+          : LoginScreen(onLoginSuccess: _handleLoginSuccess),
     );
   }
 }

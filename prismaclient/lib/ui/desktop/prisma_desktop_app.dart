@@ -1,8 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import '../../models.dart';
+import 'chat_view.dart';
 import 'drawers/left_drawer.dart';
 import 'drawers/right_drawer.dart';
-import 'message/message_input.dart';
-import 'message/message_tile.dart';
+import 'settings/settings_view.dart';
+
+// PrismaDesktopApp StatelessWidget is unchanged...
 
 class PrismaDesktopApp extends StatelessWidget {
   const PrismaDesktopApp({super.key});
@@ -20,111 +25,134 @@ class PrismaDesktopApp extends StatelessWidget {
         fontFamily: 'Inter',
         useMaterial3: true,
       ),
-      home: const PrismaDesktopHome(),
+      home: null,
     );
   }
 }
 
-class PrismaDesktopHome extends StatelessWidget {
-  const PrismaDesktopHome({super.key});
+class PrismaDesktopHome extends StatefulWidget {
+  final User currentUser;
+  const PrismaDesktopHome({super.key, required this.currentUser});
+
+  @override
+  State<PrismaDesktopHome> createState() => _PrismaDesktopHomeState();
+}
+
+class _PrismaDesktopHomeState extends State<PrismaDesktopHome> {
+  Channel? _selectedChannel;
+  bool _showSettings = false;
+
+  // **NEW**: State for managing a single, shared WebSocket connection.
+  WebSocketChannel? _channel;
+  StreamController<dynamic> _streamController = StreamController.broadcast();
+
+  @override
+  void initState() {
+    super.initState();
+    _connectWebSocket();
+  }
+
+  void _connectWebSocket() {
+    try {
+      // Connect to the WebSocket
+      _channel = WebSocketChannel.connect(
+        Uri.parse('ws://localhost:8080/api/ws?user_id=${widget.currentUser.id}'),
+      );
+
+      // Listen to the channel and pipe messages into our broadcast controller
+      _channel!.stream.listen(
+        (message) {
+          _streamController.add(message);
+        },
+        onDone: () {
+          // Handle reconnection if the connection closes
+          if (mounted) {
+            Future.delayed(const Duration(seconds: 5), _connectWebSocket);
+          }
+        },
+        onError: (error) {
+          // Handle errors and schedule reconnection
+          _streamController.addError(error);
+          if (mounted) {
+            Future.delayed(const Duration(seconds: 5), _connectWebSocket);
+          }
+        },
+      );
+    } catch (e) {
+      _streamController.addError(e);
+    }
+  }
+
+  void _handleChannelSelected(Channel channel) {
+    setState(() {
+      _selectedChannel = channel;
+    });
+  }
+
+  void _toggleSettingsView() {
+    setState(() {
+      _showSettings = !_showSettings;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Row(
-        children: [
-          const LeftDrawer(),
-          Expanded(
-            flex: 3,
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFF21242E),
-                image: DecorationImage(
-                  image: AssetImage('assets/prisma_bg.png'),
-                  fit: BoxFit.cover,
-                  colorFilter: ColorFilter.mode(
-                    Colors.black.withOpacity(0.18), BlendMode.darken
-                  ),
+      body: _showSettings
+          ? SettingsView(
+              currentUser: widget.currentUser,
+              onClose: _toggleSettingsView,
+            )
+          : Row(
+              children: [
+                LeftDrawer(
+                  user: widget.currentUser,
+                  onChannelSelected: _handleChannelSelected,
+                  onSettingsTapped: _toggleSettingsView,
                 ),
-              ),
-              child: Column(
-                children: [
-                  // Channel header
-                  Container(
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF262A36).withOpacity(0.93),
-                      border: const Border(
-                        bottom: BorderSide(color: Color(0xFF222430), width: 1),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const SizedBox(width: 16),
-                        const Icon(Icons.tag, color: Colors.tealAccent, size: 22),
-                        const SizedBox(width: 8),
-                        Text(
-                          "#general-lobby",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.tealAccent.shade100,
-                            fontSize: 18,
-                          ),
+                Expanded(
+                  flex: 3,
+                  child: _selectedChannel == null
+                      ? _buildWelcomeView()
+                      : ChatView(
+                          key: ValueKey(_selectedChannel!.id),
+                          channel: _selectedChannel!,
+                          currentUser: widget.currentUser,
+                          // **MODIFIED**: Pass the shared stream
+                          webSocketStream: _streamController.stream,
                         ),
-                        const SizedBox(width: 16),
-                        const Expanded(
-                          child: Text(
-                            "General lobby to mingle and get to know other users.",
-                            style: TextStyle(
-                              color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w400),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        IconButton(icon: const Icon(Icons.push_pin_outlined), onPressed: () {}),
-                        IconButton(icon: const Icon(Icons.group), onPressed: () {}),
-                        IconButton(icon: const Icon(Icons.search), onPressed: () {}),
-                        const SizedBox(width: 12),
-                      ],
-                    ),
-                  ),
-                  // Chat messages
-                  Expanded(
-                    child: ListView(
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 28),
-                      children: const [
-                        MessageTile(
-                          username: "SarahRose",
-                          avatar: null,
-                          time: "5:40 AM",
-                          message: "Hey! Welcome to Prisma 🎉",
-                          me: true,
-                        ),
-                        MessageTile(
-                          username: "PrismaBot",
-                          avatar: null,
-                          time: "5:41 AM",
-                          message: "Let us know if you need anything.",
-                          me: false,
-                        ),
-                        MessageTile(
-                          username: "SarahRose",
-                          avatar: null,
-                          time: "5:45 AM",
-                          message: "Trying out the new desktop UI. Looks nice!",
-                          me: true,
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Chat input
-                  const MessageInput(),
-                ],
-              ),
+                ),
+                // **MODIFIED**: Pass the shared stream
+                RightDrawer(
+                  currentUser: widget.currentUser,
+                  webSocketStream: _streamController.stream,
+                ),
+              ],
             ),
+    );
+  }
+
+  Widget _buildWelcomeView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.chat_bubble_outline,
+              size: 60, color: Colors.tealAccent.withOpacity(0.5)),
+          const SizedBox(height: 20),
+          const Text(
+            'Select a channel to start chatting',
+            style: TextStyle(fontSize: 18, color: Colors.white54),
           ),
-          const RightDrawer(),
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _channel?.sink.close();
+    _streamController.close();
+    super.dispose();
   }
 }

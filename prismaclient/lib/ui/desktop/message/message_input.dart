@@ -1,7 +1,42 @@
+// ui/desktop/message/message_input.dart
+
 import 'package:flutter/material.dart';
 
-class MessageInput extends StatelessWidget {
-  const MessageInput({super.key});
+class MessageInput extends StatefulWidget {
+  final String channelName;
+  final Future<void> Function(String message) onSend;
+
+  const MessageInput({
+    super.key,
+    required this.channelName,
+    required this.onSend,
+  });
+
+  @override
+  State<MessageInput> createState() => _MessageInputState();
+}
+
+class _MessageInputState extends State<MessageInput> {
+  final _controller = TextEditingController();
+  bool _isSending = false;
+
+  void _handleSend() async {
+    if (_isSending || _controller.text.trim().isEmpty) return;
+
+    setState(() => _isSending = true);
+    await widget.onSend(_controller.text.trim());
+
+    if(mounted) {
+      _controller.clear();
+      setState(() => _isSending = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,12 +50,14 @@ class MessageInput extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Expanded(
+          Expanded(
             child: TextField(
-              style: TextStyle(color: Colors.white),
+              controller: _controller,
+              onSubmitted: (_) => _handleSend(),
+              style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                hintText: "Message #general-lobby",
-                hintStyle: TextStyle(color: Colors.white38),
+                hintText: "Message #${widget.channelName}",
+                hintStyle: const TextStyle(color: Colors.white38),
                 border: InputBorder.none,
                 isDense: true,
               ),
@@ -39,8 +76,10 @@ class MessageInput extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: IconButton(
-              icon: const Icon(Icons.send_rounded, color: Colors.white),
-              onPressed: () {},
+              icon: _isSending
+                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white,))
+                   : const Icon(Icons.send_rounded, color: Colors.white),
+              onPressed: _handleSend,
             ),
           ),
         ],
