@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../models.dart'; // Import User model
+import '../../config.dart';
 
 class LoginScreen extends StatefulWidget {
   // UPDATED: Callback now expects a User object
@@ -41,8 +42,8 @@ class _LoginScreenState extends State<LoginScreen> {
     final isLogin = _authMode == AuthMode.login;
     final url = Uri.parse(
       isLogin
-        ? 'http://localhost:8080/api/login'
-        : 'http://localhost:8080/api/register'
+        ? '${AppConfig.apiDomain}/api/login'
+        : '${AppConfig.apiDomain}/api/register'
     );
 
     try {

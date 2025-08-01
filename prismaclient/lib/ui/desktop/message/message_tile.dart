@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../config.dart';
 
 class MessageTile extends StatelessWidget {
   final String username;
@@ -25,7 +26,7 @@ class MessageTile extends StatelessWidget {
             backgroundColor: me ? Colors.tealAccent : Colors.blueGrey,
             radius: 18,
             backgroundImage: avatar != null
-                ? NetworkImage('http://localhost:8080$avatar')
+                ? NetworkImage('${AppConfig.apiDomain}$avatar')
                 : null,
             child: avatar == null
                 ? Text(username[0], style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold))

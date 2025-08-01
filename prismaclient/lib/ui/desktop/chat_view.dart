@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import '../../models.dart';
+import '../../config.dart';
 import 'message/message_input.dart';
 import 'message/message_tile.dart';
 
@@ -85,7 +86,7 @@ class _ChatViewState extends State<ChatView> {
     });
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:8080/api/channels/${widget.channel.id}/messages'),
+        Uri.parse('${AppConfig.apiDomain}/api/channels/${widget.channel.id}/messages'),
       );
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -117,7 +118,7 @@ class _ChatViewState extends State<ChatView> {
     if (content.trim().isEmpty) return;
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:8080/api/messages'),
+        Uri.parse('${AppConfig.apiDomain}/api/messages'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'content': content,

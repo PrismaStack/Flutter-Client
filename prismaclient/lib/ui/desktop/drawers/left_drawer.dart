@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../../models.dart';
+import '../../../config.dart';
 
 class LeftDrawer extends StatefulWidget {
   final User user;
@@ -39,7 +40,7 @@ class _LeftDrawerState extends State<LeftDrawer> {
     });
     try {
       final response =
-          await http.get(Uri.parse('http://localhost:8080/api/categories'));
+          await http.get(Uri.parse('${AppConfig.apiDomain}/api/categories'));
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         final categories =
@@ -68,7 +69,7 @@ class _LeftDrawerState extends State<LeftDrawer> {
       String endpoint, List<Map<String, int>> orderData) async {
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:8080/api/reorder/$endpoint'),
+        Uri.parse('${AppConfig.apiDomain}/api/reorder/$endpoint'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(orderData),
       );
@@ -114,7 +115,7 @@ class _LeftDrawerState extends State<LeftDrawer> {
     if (fromCategoryId == toCategoryId) return;
     try {
       final response = await http.put(
-        Uri.parse('http://localhost:8080/api/channels/${channel.id}'),
+        Uri.parse('${AppConfig.apiDomain}/api/channels/${channel.id}'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'category_id': toCategoryId}),
       );
@@ -223,7 +224,7 @@ class _LeftDrawerState extends State<LeftDrawer> {
   Future<void> _createChannel(String name, int categoryId) async {
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:8080/api/channels'),
+        Uri.parse('${AppConfig.apiDomain}/api/channels'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'name': name, 'category_id': categoryId}),
       );
@@ -244,7 +245,7 @@ class _LeftDrawerState extends State<LeftDrawer> {
   Future<int?> _createCategory(String name) async {
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:8080/api/categories'),
+        Uri.parse('${AppConfig.apiDomain}/api/categories'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'name': name}),
       );
@@ -448,7 +449,7 @@ class _LeftDrawerState extends State<LeftDrawer> {
     if (newName.trim().isEmpty) return;
     try {
       final response = await http.put(
-        Uri.parse('http://localhost:8080/api/channels/$channelId'),
+        Uri.parse('${AppConfig.apiDomain}/api/channels/$channelId'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'name': newName}),
       );
@@ -470,7 +471,7 @@ class _LeftDrawerState extends State<LeftDrawer> {
   Future<void> _deleteChannel(int channelId) async {
     try {
       final response = await http.delete(
-        Uri.parse('http://localhost:8080/api/channels/$channelId'),
+        Uri.parse('${AppConfig.apiDomain}/api/channels/$channelId'),
       );
       if (response.statusCode == 200) {
         await _fetchData();
@@ -706,7 +707,7 @@ class _MeTile extends StatelessWidget {
             backgroundColor: Colors.tealAccent,
             radius: 16,
             backgroundImage: user.avatarUrl != null
-                ? NetworkImage('http://localhost:8080${user.avatarUrl}')
+                ? NetworkImage('${AppConfig.apiDomain}${user.avatarUrl}')
                 : null,
             child: user.avatarUrl == null
                 ? const Icon(Icons.person, color: Colors.black87)

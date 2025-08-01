@@ -20,7 +20,6 @@ class AppearanceSettingsPane extends StatelessWidget {
           Text("Customize the look and feel of Prisma Chat.",
               style: TextStyle(color: Colors.white70, fontSize: 15)),
           const SizedBox(height: 26),
-          // Example: add appearance settings here
           Row(
             children: [
               Icon(Icons.dark_mode, color: Colors.tealAccent.shade100),
@@ -29,7 +28,6 @@ class AppearanceSettingsPane extends StatelessWidget {
                   style: TextStyle(color: Colors.white38, fontSize: 14)),
             ],
           ),
-          // Add more appearance options here as desired
         ],
       ),
     );

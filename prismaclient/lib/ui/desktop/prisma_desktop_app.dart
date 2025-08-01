@@ -1,9 +1,9 @@
-// ui/desktop/prisma_desktop_app.dart
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../models.dart';
+import '../../config.dart';
 import 'chat_view.dart';
 import 'drawers/left_drawer.dart';
 import 'drawers/right_drawer.dart';
@@ -63,7 +63,7 @@ class _PrismaDesktopHomeState extends State<PrismaDesktopHome> {
   void _connectWebSocket() {
     try {
       _channel = WebSocketChannel.connect(
-        Uri.parse('ws://localhost:8080/api/ws?user_id=${widget.currentUser.id}'),
+        Uri.parse('${AppConfig.wsDomain}/api/ws?user_id=${widget.currentUser.id}'),
       );
 
       _channel!.stream.listen(

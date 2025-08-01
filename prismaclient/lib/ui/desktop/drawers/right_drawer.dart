@@ -1,6 +1,6 @@
-// ui/desktop/drawers/right_drawer.dart
 import 'package:flutter/material.dart';
 import '../../../models.dart';
+import '../../../config.dart';
 
 class RightDrawer extends StatelessWidget {
   final User currentUser;
@@ -85,7 +85,7 @@ class _MemberTile extends StatelessWidget {
         radius: 15,
         backgroundColor: isAdmin ? Colors.deepPurpleAccent : Colors.tealAccent,
         backgroundImage: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
-            ? NetworkImage('http://localhost:8080${user.avatarUrl}')
+            ? NetworkImage('${AppConfig.apiDomain}${user.avatarUrl}')
             : null,
         child: (user.avatarUrl == null || user.avatarUrl!.isEmpty)
             ? Text(

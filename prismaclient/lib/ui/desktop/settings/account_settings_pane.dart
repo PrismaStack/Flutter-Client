@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:http_parser/http_parser.dart';
 import '../../../models.dart';
+import '../../../config.dart';
 import 'dart:convert';
 
 class AccountSettingsPane extends StatefulWidget {
@@ -22,7 +24,7 @@ class AccountSettingsPane extends StatefulWidget {
 }
 
 class _AccountSettingsPaneState extends State<AccountSettingsPane> {
-  File? _selectedImage;
+  XFile? _selectedImage;
   bool _isUploading = false;
 
   Future<void> _pickImage() async {
@@ -31,7 +33,7 @@ class _AccountSettingsPaneState extends State<AccountSettingsPane> {
 
     if (pickedFile != null) {
       setState(() {
-        _selectedImage = File(pickedFile.path);
+        _selectedImage = pickedFile;
       });
       await _uploadImage();
     }
@@ -47,18 +49,32 @@ class _AccountSettingsPaneState extends State<AccountSettingsPane> {
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://localhost:8080/api/upload-avatar'),
+        Uri.parse('${AppConfig.apiDomain}/api/upload-avatar'),
       );
 
-      // Add file
-      var file = await http.MultipartFile.fromPath(
-        'avatar',
-        _selectedImage!.path,
-        contentType: MediaType('image', path.extension(_selectedImage!.path).replaceFirst('.', '')),
-      );
-      request.files.add(file);
+      if (kIsWeb) {
+        // Web: use fromBytes
+        final bytes = await _selectedImage!.readAsBytes();
+        final filename = path.basename(_selectedImage!.name ?? _selectedImage!.path);
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'avatar',
+            bytes,
+            filename: filename,
+            contentType: MediaType('image', path.extension(filename).replaceFirst('.', '')),
+          ),
+        );
+      } else {
+        // Desktop: use fromPath
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'avatar',
+            _selectedImage!.path,
+            contentType: MediaType('image', path.extension(_selectedImage!.path).replaceFirst('.', '')),
+          ),
+        );
+      }
 
-      // Add user ID
       request.fields['user_id'] = widget.user.id.toString();
 
       var response = await request.send();
@@ -91,7 +107,7 @@ class _AccountSettingsPaneState extends State<AccountSettingsPane> {
           radius: 40,
           backgroundColor: Colors.tealAccent,
           backgroundImage: currentAvatar != null
-              ? NetworkImage('http://localhost:8080$currentAvatar')
+              ? NetworkImage('${AppConfig.apiDomain}$currentAvatar')
               : null,
           child: currentAvatar == null
               ? const Icon(Icons.person, size: 50, color: Colors.black87)
@@ -122,7 +138,6 @@ class _AccountSettingsPaneState extends State<AccountSettingsPane> {
 
   @override
   Widget build(BuildContext context) {
-    // Update the _buildProfileHeader method to use _buildAvatar()
     return Scaffold(
       backgroundColor: const Color(0xFF232635),
       body: SingleChildScrollView(
@@ -156,7 +171,7 @@ class _AccountSettingsPaneState extends State<AccountSettingsPane> {
     return Card(
       elevation: 0,
       margin: EdgeInsets.zero,
-      color: const Color(0xFF111214), // Very dark card background
+      color: const Color(0xFF111214),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -183,7 +198,7 @@ class _AccountSettingsPaneState extends State<AccountSettingsPane> {
                   ),
                 ),
                 Text(
-                  ' •••', // The three dots from the screenshot
+                  ' •••',
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.7),
                     fontSize: 20,

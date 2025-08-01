@@ -6,13 +6,13 @@ import 'appearance_settings_pane.dart';
 class SettingsView extends StatefulWidget {
   User currentUser;
   final VoidCallback onClose;
-  final VoidCallback onLogout; // FIX: Add the property
+  final VoidCallback onLogout;
 
   SettingsView({
     super.key,
     required this.currentUser,
     required this.onClose,
-    required this.onLogout, // FIX: Add to the constructor
+    required this.onLogout,
   });
 
   @override
@@ -136,6 +136,7 @@ class _SettingsSidebar extends StatelessWidget {
   static const _userSettings = [
     {'id': 'my_account', 'label': 'My Account'},
     {'id': 'profiles', 'label': 'Profiles'},
+    {'id': 'appearance', 'label': 'Appearance'},
     {'id': 'privacy', 'label': 'Privacy'},
   ];
 
