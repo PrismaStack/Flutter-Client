@@ -1,4 +1,6 @@
+// ui/desktop/prisma_desktop_app.dart
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../models.dart';
@@ -32,7 +34,13 @@ class PrismaDesktopApp extends StatelessWidget {
 
 class PrismaDesktopHome extends StatefulWidget {
   final User currentUser;
-  const PrismaDesktopHome({super.key, required this.currentUser});
+  final VoidCallback onLogout;
+
+  const PrismaDesktopHome({
+    super.key,
+    required this.currentUser,
+    required this.onLogout,
+  });
 
   @override
   State<PrismaDesktopHome> createState() => _PrismaDesktopHomeState();
@@ -42,9 +50,9 @@ class _PrismaDesktopHomeState extends State<PrismaDesktopHome> {
   Channel? _selectedChannel;
   bool _showSettings = false;
 
-  // **NEW**: State for managing a single, shared WebSocket connection.
   WebSocketChannel? _channel;
-  StreamController<dynamic> _streamController = StreamController.broadcast();
+  final StreamController<dynamic> _streamController = StreamController.broadcast();
+  List<User>? _onlineUsers;
 
   @override
   void initState() {
@@ -54,31 +62,43 @@ class _PrismaDesktopHomeState extends State<PrismaDesktopHome> {
 
   void _connectWebSocket() {
     try {
-      // Connect to the WebSocket
       _channel = WebSocketChannel.connect(
         Uri.parse('ws://localhost:8080/api/ws?user_id=${widget.currentUser.id}'),
       );
 
-      // Listen to the channel and pipe messages into our broadcast controller
       _channel!.stream.listen(
         (message) {
+          // Handle presence updates directly in this stateful widget
+          final decodedWrapper = json.decode(message);
+          final event = decodedWrapper['event'];
+          if (event == 'presence_update') {
+            final payload = decodedWrapper['payload'];
+            if (payload is List) {
+              if (mounted) {
+                setState(() {
+                  _onlineUsers = payload.map<User>((data) => User.fromJson(data)).toList();
+                });
+              }
+            }
+          }
+          // Pipe all messages to the stream for other listeners (like ChatView)
           _streamController.add(message);
         },
         onDone: () {
-          // Handle reconnection if the connection closes
           if (mounted) {
             Future.delayed(const Duration(seconds: 5), _connectWebSocket);
           }
         },
         onError: (error) {
-          // Handle errors and schedule reconnection
           _streamController.addError(error);
           if (mounted) {
+            setState(() => _onlineUsers = []); // Clear users on error
             Future.delayed(const Duration(seconds: 5), _connectWebSocket);
           }
         },
       );
     } catch (e) {
+      if(mounted) setState(() => _onlineUsers = []);
       _streamController.addError(e);
     }
   }
@@ -102,6 +122,7 @@ class _PrismaDesktopHomeState extends State<PrismaDesktopHome> {
           ? SettingsView(
               currentUser: widget.currentUser,
               onClose: _toggleSettingsView,
+              onLogout: widget.onLogout,
             )
           : Row(
               children: [
@@ -118,14 +139,12 @@ class _PrismaDesktopHomeState extends State<PrismaDesktopHome> {
                           key: ValueKey(_selectedChannel!.id),
                           channel: _selectedChannel!,
                           currentUser: widget.currentUser,
-                          // **MODIFIED**: Pass the shared stream
                           webSocketStream: _streamController.stream,
                         ),
                 ),
-                // **MODIFIED**: Pass the shared stream
                 RightDrawer(
                   currentUser: widget.currentUser,
-                  webSocketStream: _streamController.stream,
+                  onlineUsers: _onlineUsers,
                 ),
               ],
             ),

@@ -1,97 +1,26 @@
-import 'dart:async';
-import 'dart:convert';
+// ui/desktop/drawers/right_drawer.dart
 import 'package:flutter/material.dart';
 import '../../../models.dart';
 
-class RightDrawer extends StatefulWidget {
+class RightDrawer extends StatelessWidget {
   final User currentUser;
-  // **NEW**: Accept the shared WebSocket stream
-  final Stream<dynamic> webSocketStream;
+  final List<User>? onlineUsers;
 
   const RightDrawer({
     super.key,
     required this.currentUser,
-    required this.webSocketStream,
+    required this.onlineUsers,
   });
-
-  @override
-  State<RightDrawer> createState() => _RightDrawerState();
-}
-
-class _RightDrawerState extends State<RightDrawer> {
-  // **MODIFIED**: No longer manages its own channel
-  StreamSubscription? _streamSubscription;
-  List<User> _onlineUsers = [];
-  bool _isLoading = true;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _listenToPresence();
-  }
-
-  @override
-  void didUpdateWidget(covariant RightDrawer oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.webSocketStream != oldWidget.webSocketStream) {
-      _listenToPresence(); // Re-subscribe if the stream instance changes
-    }
-  }
-
-  void _listenToPresence() {
-    _streamSubscription?.cancel(); // Cancel any old subscription
-    setState(() {
-      _isLoading = true; // Show loader until first presence update arrives
-    });
-    _streamSubscription = widget.webSocketStream.listen(
-      (message) {
-        final decodedWrapper = json.decode(message);
-        final event = decodedWrapper['event'];
-        if (event == 'presence_update') {
-          final payload = decodedWrapper['payload'];
-          if (payload is List) {
-            if (mounted) {
-              setState(() {
-                _onlineUsers = payload.map<User>((data) => User.fromJson(data)).toList();
-                _isLoading = false;
-                _error = null;
-              });
-            }
-          }
-        }
-      },
-      onError: (error) {
-        if (mounted) {
-          setState(() {
-            _error = 'Connection error: $error';
-            _isLoading = false;
-          });
-        }
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    _streamSubscription?.cancel();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     Widget content;
 
-    if (_isLoading) {
+    if (onlineUsers == null) {
       content = const Center(child: CircularProgressIndicator());
-    } else if (_error != null) {
-      content = Center(child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Text(_error!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
-      ));
     } else {
-      final admins = _onlineUsers.where((u) => u.role == 'admin').toList();
-      final members = _onlineUsers.where((u) => u.role != 'admin').toList();
+      final admins = onlineUsers!.where((u) => u.role == 'admin').toList();
+      final members = onlineUsers!.where((u) => u.role != 'admin').toList();
 
       admins.sort((a, b) => a.displayName.compareTo(b.displayName));
       members.sort((a, b) => a.displayName.compareTo(b.displayName));

@@ -6,11 +6,13 @@ import 'appearance_settings_pane.dart';
 class SettingsView extends StatefulWidget {
   User currentUser;
   final VoidCallback onClose;
+  final VoidCallback onLogout; // FIX: Add the property
 
   SettingsView({
     super.key,
     required this.currentUser,
     required this.onClose,
+    required this.onLogout, // FIX: Add to the constructor
   });
 
   @override
@@ -26,9 +28,7 @@ class _SettingsViewState extends State<SettingsView> {
         return AccountSettingsPane(
           user: widget.currentUser,
           onAvatarUpdated: (avatarUrl) {
-            // Update the current user with new avatar
             setState(() {
-              // The 'role' field was missing, which is required by the User constructor.
               widget.currentUser = User(
                 id: widget.currentUser.id,
                 username: widget.currentUser.username,
@@ -44,7 +44,6 @@ class _SettingsViewState extends State<SettingsView> {
       case 'appearance':
         return const AppearanceSettingsPane();
       default:
-        // Placeholder for other settings pages
         return Center(
           child: Text(
             'Settings for "$_selectedPageId" coming soon!',
@@ -59,18 +58,17 @@ class _SettingsViewState extends State<SettingsView> {
     return Row(
       children: [
         _SettingsSidebar(
+          currentUser: widget.currentUser,
           selectedPageId: _selectedPageId,
           onPageSelected: (id) => setState(() => _selectedPageId = id),
-          onLogout: () {
-            // Implement logout logic here, e.g., navigate to login screen
-          },
+          onLogout: widget.onLogout,
         ),
         Expanded(
           child: Column(
             children: [
               _SettingsHeader(onClose: widget.onClose),
               Expanded(
-                child: ClipRect( // Prevents content from drawing over the header
+                child: ClipRect(
                   child: _buildContentPane(),
                 ),
               ),
@@ -123,11 +121,13 @@ class _SettingsHeader extends StatelessWidget {
 }
 
 class _SettingsSidebar extends StatelessWidget {
+  final User currentUser;
   final String selectedPageId;
   final Function(String) onPageSelected;
   final VoidCallback onLogout;
 
   const _SettingsSidebar({
+    required this.currentUser,
     required this.selectedPageId,
     required this.onPageSelected,
     required this.onLogout,
@@ -136,19 +136,11 @@ class _SettingsSidebar extends StatelessWidget {
   static const _userSettings = [
     {'id': 'my_account', 'label': 'My Account'},
     {'id': 'profiles', 'label': 'Profiles'},
-    {'id': 'privacy', 'label': 'Privacy & Safety'},
-    {'id': 'family_center', 'label': 'Family Center'},
-    {'id': 'authorized_apps', 'label': 'Authorized Apps'},
-    {'id': 'devices', 'label': 'Devices'},
-    {'id': 'connections', 'label': 'Connections'},
+    {'id': 'privacy', 'label': 'Privacy'},
   ];
 
-  static const _billingSettings = [
-    {'id': 'nitro', 'label': 'Nitro'},
-    {'id': 'server_boost', 'label': 'Server Boost'},
-    {'id': 'subscriptions', 'label': 'Subscriptions'},
-    {'id': 'gift_inventory', 'label': 'Gift Inventory'},
-    {'id': 'billing', 'label': 'Billing'},
+  static const _adminSettings = [
+    {'id': 'global_server_settings', 'label': 'Global Server Settings'},
   ];
 
   @override
@@ -169,13 +161,15 @@ class _SettingsSidebar extends StatelessWidget {
                   selectedId: selectedPageId,
                   onSelected: onPageSelected,
                 ),
-                const SizedBox(height: 10),
-                _NavSection(
-                  title: 'Billing Settings',
-                  items: _billingSettings,
-                  selectedId: selectedPageId,
-                  onSelected: onPageSelected,
-                ),
+                if (currentUser.role == 'admin') ...[
+                  const SizedBox(height: 24),
+                  _NavSection(
+                    title: 'Admin',
+                    items: _adminSettings,
+                    selectedId: selectedPageId,
+                    onSelected: onPageSelected,
+                  ),
+                ],
               ],
             ),
           ),

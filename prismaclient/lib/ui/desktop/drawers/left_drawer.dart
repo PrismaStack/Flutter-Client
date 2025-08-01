@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../../models.dart';
 
-// --- Main Widget ---
-
 class LeftDrawer extends StatefulWidget {
   final User user;
   final void Function(Channel channel) onChannelSelected;
@@ -112,7 +110,33 @@ class _LeftDrawerState extends State<LeftDrawer> {
     });
   }
 
+  void _moveChannelToCategory(Channel channel, int fromCategoryId, int toCategoryId) async {
+    if (fromCategoryId == toCategoryId) return;
+    try {
+      final response = await http.put(
+        Uri.parse('http://localhost:8080/api/channels/${channel.id}'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'category_id': toCategoryId}),
+      );
+      if (response.statusCode == 200) {
+        _fetchData();
+      } else {
+        throw Exception('Failed to move channel: ${response.body}');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error moving channel: $e'), backgroundColor: Colors.redAccent),
+        );
+      }
+    }
+  }
+
   void _showContextMenu(BuildContext context, Offset position, Channel channel) {
+    final fromCategory = _categories.firstWhere((cat) =>
+      cat.channels.any((c) => c.id == channel.id),
+      orElse: () => _categories.first
+    );
     showMenu(
       context: context,
       position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx, position.dy),
@@ -133,6 +157,15 @@ class _LeftDrawerState extends State<LeftDrawer> {
             Text('Delete Channel', style: TextStyle(color: Colors.redAccent)),
           ]),
         ),
+        if (_categories.length > 1)
+          PopupMenuItem(
+            value: 'move',
+            child: Row(children: const [
+              Icon(Icons.drive_file_move_outline, size: 18),
+              SizedBox(width: 8),
+              Text('Move to...'),
+            ]),
+          ),
       ],
       elevation: 8,
       color: const Color(0xFF2C313D),
@@ -141,8 +174,50 @@ class _LeftDrawerState extends State<LeftDrawer> {
         _showRenameDialog(channel);
       } else if (value == 'delete') {
         _showDeleteConfirmationDialog(channel);
+      } else if (value == 'move') {
+        _showMoveChannelDialog(channel, fromCategory);
       }
     });
+  }
+
+  void _showMoveChannelDialog(Channel channel, ChannelCategory fromCategory) {
+    int? selectedCategoryId = _categories.where((c) => c.id != fromCategory.id).first.id;
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF2C313D),
+          title: const Text('Move Channel', style: TextStyle(color: Colors.white)),
+          content: DropdownButtonFormField<int>(
+            dropdownColor: const Color(0xFF2C313D),
+            value: selectedCategoryId,
+            decoration: const InputDecoration(labelText: 'Select Category'),
+            items: _categories.where((c) => c.id != fromCategory.id).map((category) {
+              return DropdownMenuItem(
+                value: category.id,
+                child: Text(category.name, style: const TextStyle(color: Colors.white)),
+              );
+            }).toList(),
+            onChanged: (value) => selectedCategoryId = value,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel', style: TextStyle(color: Colors.tealAccent)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (selectedCategoryId != null) {
+                  Navigator.of(context).pop();
+                  _moveChannelToCategory(channel, fromCategory.id, selectedCategoryId!);
+                }
+              },
+              child: const Text('Move'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _createChannel(String name, int categoryId) async {
@@ -166,7 +241,139 @@ class _LeftDrawerState extends State<LeftDrawer> {
     }
   }
 
-  // Rename dialog implementation
+  Future<int?> _createCategory(String name) async {
+    try {
+      final response = await http.post(
+        Uri.parse('http://localhost:8080/api/categories'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'name': name}),
+      );
+      if (response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return data['id'];
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error creating category: ${response.body}'), backgroundColor: Colors.redAccent),
+          );
+        }
+        return null;
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
+        );
+      }
+      return null;
+    }
+  }
+
+  void _showCreateChannelDialog() {
+    final formKey = GlobalKey<FormState>();
+    String channelName = '';
+    String newCategoryName = '';
+    ChannelCategory? selectedCategory = _categories.isNotEmpty ? _categories.first : null;
+    bool createNewCategory = false;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF2C313D),
+              title: const Text('Create New Channel', style: TextStyle(color: Colors.white)),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      decoration: const InputDecoration(labelText: 'Channel Name'),
+                      validator: (value) => value == null || value.trim().isEmpty ? 'Enter a channel name' : null,
+                      onSaved: (value) => channelName = value!,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    const SizedBox(height: 10),
+                    CheckboxListTile(
+                      title: const Text("Create new category", style: TextStyle(color: Colors.white70)),
+                      value: createNewCategory,
+                      onChanged: (bool? value) {
+                        setDialogState(() {
+                          createNewCategory = value ?? false;
+                        });
+                      },
+                      controlAffinity: ListTileControlAffinity.leading,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    if (createNewCategory)
+                      TextFormField(
+                        decoration: const InputDecoration(labelText: 'New Category Name'),
+                        validator: (value) {
+                          if (createNewCategory && (value == null || value.trim().isEmpty)) {
+                            return 'Enter a category name';
+                          }
+                          return null;
+                        },
+                        onSaved: (value) => newCategoryName = value!,
+                        style: const TextStyle(color: Colors.white),
+                      )
+                    else
+                      DropdownButtonFormField<ChannelCategory>(
+                        value: selectedCategory,
+                        dropdownColor: const Color(0xFF2C313D),
+                        decoration: const InputDecoration(labelText: 'Choose Existing Category'),
+                        items: _categories.map((category) {
+                          return DropdownMenuItem(
+                            value: category,
+                            child: Text(category.name, style: const TextStyle(color: Colors.white)),
+                          );
+                        }).toList(),
+                        onChanged: (value) => setDialogState(() => selectedCategory = value),
+                        validator: (value) {
+                          if (!createNewCategory && value == null) {
+                            return 'Select a category';
+                          }
+                          return null;
+                        },
+                      ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.tealAccent)),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (formKey.currentState!.validate()) {
+                      formKey.currentState!.save();
+                      Navigator.of(context).pop();
+
+                      int? categoryId;
+                      if (createNewCategory) {
+                        categoryId = await _createCategory(newCategoryName);
+                      } else {
+                        categoryId = selectedCategory!.id;
+                      }
+
+                      if (categoryId != null) {
+                        await _createChannel(channelName, categoryId);
+                      }
+                    }
+                  },
+                  child: const Text('Create'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _showRenameDialog(Channel channel) {
     final controller = TextEditingController(text: channel.name);
     final formKey = GlobalKey<FormState>();
@@ -208,7 +415,6 @@ class _LeftDrawerState extends State<LeftDrawer> {
     );
   }
 
-  // Delete confirmation dialog implementation
   void _showDeleteConfirmationDialog(Channel channel) {
     showDialog(
       context: context,
@@ -281,45 +487,6 @@ class _LeftDrawerState extends State<LeftDrawer> {
     }
   }
 
-  void _showCreateChannelDialogFor(ChannelCategory category) {
-    final formKey = GlobalKey<FormState>();
-    String channelName = '';
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF2C313D),
-          title: Text('Create New Channel in "${category.name}"', style: const TextStyle(color: Colors.white)),
-          content: Form(
-            key: formKey,
-            child: TextFormField(
-              decoration: const InputDecoration(labelText: 'Channel Name'),
-              validator: (value) => value == null || value.trim().isEmpty ? 'Enter a channel name' : null,
-              onSaved: (value) => channelName = value!,
-              style: const TextStyle(color: Colors.white),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel', style: TextStyle(color: Colors.tealAccent)),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (formKey.currentState!.validate()) {
-                  formKey.currentState!.save();
-                  Navigator.of(context).pop();
-                  await _createChannel(channelName, category.id);
-                }
-              },
-              child: const Text('Create'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   Widget _buildChannelList() {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
     if (_error != null) {
@@ -329,6 +496,7 @@ class _LeftDrawerState extends State<LeftDrawer> {
         child: Text(_error!, style: const TextStyle(color: Colors.red)),
       ));
     }
+
     return ReorderableListView.builder(
       itemCount: _categories.length,
       onReorder: _onCategoryReorder,
@@ -339,13 +507,13 @@ class _LeftDrawerState extends State<LeftDrawer> {
           key: ValueKey(category.id),
           color: Colors.transparent,
           elevation: 0,
+          margin: EdgeInsets.zero,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (index > 0) const SizedBox(height: 18),
               _SectionHeader(
                 title: category.name,
-                onAdd: widget.user.role == 'admin' ? () => _showCreateChannelDialogFor(category) : null,
+                onAdd: widget.user.role == 'admin' ? _showCreateChannelDialog : null,
                 dragHandle: ReorderableDragStartListener(
                   index: index,
                   child: const Icon(Icons.drag_handle, size: 20, color: Colors.white24),
@@ -422,7 +590,6 @@ class _LeftDrawerState extends State<LeftDrawer> {
   }
 }
 
-// --- Helper Widgets (with changes) ---
 class _SectionHeader extends StatelessWidget {
   final String title;
   final VoidCallback? onAdd;
@@ -491,7 +658,6 @@ class _ChannelTile extends StatelessWidget {
                   ),
                 ),
               ),
-              // No reorder handle on channels!
             ],
           ),
         ),

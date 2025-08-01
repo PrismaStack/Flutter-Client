@@ -1,3 +1,4 @@
+// main.dart
 import 'package:flutter/material.dart';
 import 'models.dart'; // Import the User model
 import 'ui/desktop/login_screen.dart';
@@ -15,13 +16,17 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  // UPDATED: Store the full User object, not just a boolean
   User? _currentUser;
 
-  // UPDATED: The handler now receives the User object on success
   void _handleLoginSuccess(User user) {
     setState(() {
       _currentUser = user;
+    });
+  }
+
+  void _handleLogout() {
+    setState(() {
+      _currentUser = null;
     });
   }
 
@@ -37,9 +42,11 @@ class _MyAppState extends State<MyApp> {
         fontFamily: 'Inter',
         useMaterial3: true,
       ),
-      // UPDATED: Pass the currentUser to the home screen
       home: _currentUser != null
-          ? PrismaDesktopHome(currentUser: _currentUser!)
+          ? PrismaDesktopHome(
+              currentUser: _currentUser!,
+              onLogout: _handleLogout, // FIX: Pass the callback here
+            )
           : LoginScreen(onLoginSuccess: _handleLoginSuccess),
     );
   }
