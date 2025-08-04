@@ -1,3 +1,6 @@
+// ui/desktop/message/message_tile.dart
+import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -59,7 +62,7 @@ class MessageTile extends StatelessWidget {
                     ),
                   ],
                 ),
-                ..._parseMessageContent(message, context),
+                ..._parseMessageContent(message, context), // Message content is parsed here
               ],
             ),
           ),
@@ -69,19 +72,103 @@ class MessageTile extends StatelessWidget {
   }
 }
 
+// --- NEW WIDGET & HELPERS ---
+
+class _FileAttachmentTile extends StatelessWidget {
+  final Map<String, dynamic> uploadData;
+
+  const _FileAttachmentTile({required this.uploadData});
+
+  String _formatBytes(int bytes, {int decimals = 2}) {
+    if (bytes <= 0) return "0 B";
+    const suffixes = ["B", "KB", "MB", "GB", "TB"];
+    var i = (log(bytes) / log(1024)).floor();
+    return '${(bytes / pow(1024, i)).toStringAsFixed(decimals)} ${suffixes[i]}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final String filename = uploadData['orig_filename'] ?? 'file';
+    final int filesize = uploadData['filesize'] ?? 0;
+    final String url = uploadData['url'] ?? '';
+    final fullUrl = Uri.parse('${AppConfig.apiDomain}$url');
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0),
+      child: Material(
+        color: const Color(0xFF2A2D31),
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: () async {
+            if (await canLaunchUrl(fullUrl)) {
+              await launchUrl(fullUrl, mode: LaunchMode.externalApplication);
+            }
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            constraints: const BoxConstraints(maxWidth: 350),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.black26,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.insert_drive_file_rounded, color: Colors.white70, size: 28),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        filename,
+                        style: const TextStyle(
+                          color: Colors.tealAccent,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _formatBytes(filesize),
+                        style: const TextStyle(color: Colors.white54, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// --- MODIFIED PARSING LOGIC ---
+
 List<Widget> _parseMessageContent(String message, BuildContext context) {
+  const fileMarker = 'PRISMA_FILE_PAYLOAD::';
+  if (message.startsWith(fileMarker)) {
+    try {
+      final jsonString = message.substring(fileMarker.length);
+      final uploadData = json.decode(jsonString);
+      return [ _FileAttachmentTile(uploadData: uploadData) ];
+    } catch (e) {
+      return [Text(message, style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.4))];
+    }
+  }
+
   final widgets = <Widget>[];
-
-  // Regex for URLs
-  final urlRegExp = RegExp(
-      r'(https?:\/\/[^\s]+)', caseSensitive: false);
-
-  // Split message into text and URLs
+  final urlRegExp = RegExp(r'(https?:\/\/[^\s]+)', caseSensitive: false);
   final matches = urlRegExp.allMatches(message);
   int lastIndex = 0;
 
   for (var match in matches) {
-    // Add text before the URL
     if (match.start > lastIndex) {
       widgets.add(Text(
         message.substring(lastIndex, match.start),
@@ -100,7 +187,6 @@ List<Widget> _parseMessageContent(String message, BuildContext context) {
     lastIndex = match.end;
   }
 
-  // Add any trailing text
   if (lastIndex < message.length) {
     widgets.add(Text(
       message.substring(lastIndex),
@@ -108,7 +194,6 @@ List<Widget> _parseMessageContent(String message, BuildContext context) {
     ));
   }
 
-  // If there are no links, just render the message as text
   if (widgets.isEmpty) {
     widgets.add(Text(
       message,
@@ -128,7 +213,6 @@ bool _isImage(String url) {
 }
 
 bool _isYouTube(String url) {
-  // Matches YouTube links
   return RegExp(r'(youtube\.com\/watch\?v=|youtu\.be\/)').hasMatch(url);
 }
 
@@ -157,53 +241,44 @@ class _YouTubeEmbed extends StatelessWidget {
   final String url;
   const _YouTubeEmbed(this.url);
 
-  String get videoId {
-    final uri = Uri.tryParse(url);
-    if (uri == null) return "";
-    if (uri.host.contains('youtube.com') && uri.queryParameters.containsKey('v')) {
-      return uri.queryParameters['v']!;
-    } else if (uri.host.contains('youtu.be')) {
-      return uri.pathSegments.isNotEmpty ? uri.pathSegments.first : "";
+  String? get videoId {
+    try {
+        final uri = Uri.parse(url);
+        if (uri.host.contains('youtube.com')) {
+        return uri.queryParameters['v'];
+        } else if (uri.host.contains('youtu.be')) {
+        return uri.pathSegments.first;
+        }
+    } catch (e) {
+        return null;
     }
-    return "";
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
     final id = videoId;
-    if (id.isEmpty) return _LinkWidget(url);
+    if (id == null || id.isEmpty) return _LinkWidget(url);
 
-    // Desktop fallback: clickable thumbnail
+    final uri = Uri.parse(url);
+
     return Padding(
       padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
       child: InkWell(
         onTap: () async {
-          if (await canLaunch(url)) await launch(url);
+            if (await canLaunchUrl(uri)) {
+                // FIXED: Use the new mode parameter
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+            }
         },
         child: Image.network(
-          "https://img.youtube.com/vi/$id/0.jpg",
+          "https://i.ytimg.com/vi/$id/hqdefault.jpg",
           height: 180,
           fit: BoxFit.cover,
           errorBuilder: (c, e, s) => Text("View on YouTube", style: TextStyle(color: Colors.blueAccent)),
         ),
       ),
     );
-
-    // Uncomment below for webview preview on web only (requires webview_flutter for web)
-    /*
-    if (kIsWeb) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
-        child: SizedBox(
-          height: 220,
-          child: WebView(
-            initialUrl: 'https://www.youtube.com/embed/$id',
-            javascriptMode: JavascriptMode.unrestricted,
-          ),
-        ),
-      );
-    }
-    */
   }
 }
 
@@ -213,6 +288,7 @@ class _LinkWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final uri = Uri.parse(url);
     return InkWell(
       child: Text(
         url,
@@ -223,8 +299,9 @@ class _LinkWidget extends StatelessWidget {
         ),
       ),
       onTap: () async {
-        if (await canLaunch(url)) {
-          await launch(url, forceWebView: false);
+        if (await canLaunchUrl(uri)) {
+          // FIXED: Use the new mode parameter instead of forceWebView
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
         }
       },
     );

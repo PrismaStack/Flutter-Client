@@ -1,3 +1,5 @@
+// ui/desktop/chat_view.dart
+
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -151,6 +153,8 @@ class _ChatViewState extends State<ChatView> {
           MessageInput(
             channelName: widget.channel.name,
             onSend: _sendMessage,
+            // MODIFIED: Pass the current user to the input widget
+            currentUser: widget.currentUser,
           ),
         ],
       ),
