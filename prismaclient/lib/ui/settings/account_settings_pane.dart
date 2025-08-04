@@ -52,16 +52,17 @@ class _AccountSettingsPaneState extends State<AccountSettingsPane> {
         Uri.parse('${AppConfig.apiDomain}/api/upload-avatar'),
       );
 
+      // ---- FIX for Web File Upload ----
+      // Switched to a streaming approach for web to avoid a known platform issue.
       if (kIsWeb) {
-        // Web: use fromBytes
-        final bytes = await _selectedImage!.readAsBytes();
-        final filename = path.basename(_selectedImage!.name ?? _selectedImage!.path);
+        final file = _selectedImage!;
         request.files.add(
-          http.MultipartFile.fromBytes(
+          http.MultipartFile(
             'avatar',
-            bytes,
-            filename: filename,
-            contentType: MediaType('image', path.extension(filename).replaceFirst('.', '')),
+            file.openRead(),
+            await file.length(),
+            filename: file.name,
+            contentType: MediaType('image', path.extension(file.name).replaceFirst('.', '')),
           ),
         );
       } else {
@@ -74,6 +75,7 @@ class _AccountSettingsPaneState extends State<AccountSettingsPane> {
           ),
         );
       }
+      // ---- END FIX ----
 
       request.fields['user_id'] = widget.user.id.toString();
 
@@ -116,7 +118,10 @@ class _AccountSettingsPaneState extends State<AccountSettingsPane> {
         if (_isUploading)
           Positioned.fill(
             child: Container(
-              color: Colors.black54,
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(40),
+              ),
               child: const Center(
                 child: CircularProgressIndicator(),
               ),
@@ -128,7 +133,7 @@ class _AccountSettingsPaneState extends State<AccountSettingsPane> {
           child: FloatingActionButton(
             mini: true,
             backgroundColor: Colors.tealAccent,
-            onPressed: _pickImage,
+            onPressed: _isUploading ? null : _pickImage,
             child: const Icon(Icons.camera_alt, color: Colors.black87),
           ),
         ),
