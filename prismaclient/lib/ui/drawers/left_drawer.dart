@@ -48,11 +48,20 @@ class _LeftDrawerState extends State<LeftDrawer> {
         if (mounted) {
           setState(() {
             _categories = categories;
+
+            // ---- FIX ----
+            // The following block was removed. It was auto-selecting the first channel
+            // and causing a navigation issue (a "pop") on mobile before the UI
+            // was ready, leading to a black screen. The app will now wait for
+            // the user to manually select a channel.
+            /*
             if (_categories.isNotEmpty && _categories.first.channels.isNotEmpty) {
               final firstChannel = _categories.first.channels.first;
               _selectedChannelId = firstChannel.id;
               widget.onChannelSelected(firstChannel);
             }
+            */
+            // ---- END FIX ----
           });
         }
       } else {

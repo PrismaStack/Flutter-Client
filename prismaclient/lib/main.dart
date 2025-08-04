@@ -1,8 +1,10 @@
 // main.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'models.dart'; // Import the User model
-import 'ui/desktop/login_screen.dart';
-import 'ui/desktop/prisma_desktop_app.dart'; // Import your main desktop app
+import 'ui/login_screen.dart';
+import 'ui/prisma_desktop_app.dart';
+import 'ui/prisma_mobile_app.dart'; // Import the new mobile app view
 
 void main() {
   runApp(const MyApp());
@@ -30,6 +32,24 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
+  /// Builds the appropriate home screen based on the platform.
+  Widget _buildHomeScreen() {
+    final isMobile = defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+
+    if (isMobile) {
+      return PrismaMobileHome(
+        currentUser: _currentUser!,
+        onLogout: _handleLogout,
+      );
+    } else {
+      return PrismaDesktopHome(
+        currentUser: _currentUser!,
+        onLogout: _handleLogout,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -43,10 +63,7 @@ class _MyAppState extends State<MyApp> {
         useMaterial3: true,
       ),
       home: _currentUser != null
-          ? PrismaDesktopHome(
-              currentUser: _currentUser!,
-              onLogout: _handleLogout, // FIX: Pass the callback here
-            )
+          ? _buildHomeScreen() // Use the helper to select the view
           : LoginScreen(onLoginSuccess: _handleLoginSuccess),
     );
   }

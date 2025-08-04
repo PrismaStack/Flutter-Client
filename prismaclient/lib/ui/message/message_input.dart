@@ -1,4 +1,4 @@
-// ui/desktop/message/message_input.dart
+// ui//message/message_input.dart
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';

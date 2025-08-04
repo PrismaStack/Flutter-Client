@@ -1,4 +1,4 @@
-// ui/desktop/chat_view.dart
+// ui//chat_view.dart
 
 import 'dart:async';
 import 'dart:convert';

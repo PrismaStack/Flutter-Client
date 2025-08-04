@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../models.dart';
 import 'account_settings_pane.dart';
@@ -22,24 +23,27 @@ class SettingsView extends StatefulWidget {
 class _SettingsViewState extends State<SettingsView> {
   String _selectedPageId = 'my_account';
 
+  // This internal state update logic for avatar changes is still needed
+  void _onAvatarUpdated(String avatarUrl) {
+    setState(() {
+      widget.currentUser = User(
+        id: widget.currentUser.id,
+        username: widget.currentUser.username,
+        displayName: widget.currentUser.displayName,
+        email: widget.currentUser.email,
+        phone: widget.currentUser.phone,
+        avatarUrl: avatarUrl,
+        role: widget.currentUser.role,
+      );
+    });
+  }
+
   Widget _buildContentPane() {
     switch (_selectedPageId) {
       case 'my_account':
         return AccountSettingsPane(
           user: widget.currentUser,
-          onAvatarUpdated: (avatarUrl) {
-            setState(() {
-              widget.currentUser = User(
-                id: widget.currentUser.id,
-                username: widget.currentUser.username,
-                displayName: widget.currentUser.displayName,
-                email: widget.currentUser.email,
-                phone: widget.currentUser.phone,
-                avatarUrl: avatarUrl,
-                role: widget.currentUser.role,
-              );
-            });
-          },
+          onAvatarUpdated: _onAvatarUpdated,
         );
       case 'appearance':
         return const AppearanceSettingsPane();
@@ -55,6 +59,46 @@ class _SettingsViewState extends State<SettingsView> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+
+    // For mobile, render a tabbed view inside a Scaffold
+    if (isMobile) {
+      return DefaultTabController(
+        length: 2, // My Account & Appearance
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('Settings'),
+            backgroundColor: const Color(0xFF232635),
+            bottom: const TabBar(
+              indicatorColor: Colors.tealAccent,
+              tabs: [
+                Tab(text: 'My Account'),
+                Tab(text: 'Appearance'),
+              ],
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.logout),
+                tooltip: 'Log Out',
+                onPressed: widget.onLogout,
+              )
+            ],
+          ),
+          body: TabBarView(
+            children: [
+              AccountSettingsPane(
+                user: widget.currentUser,
+                onAvatarUpdated: _onAvatarUpdated,
+              ),
+              const AppearanceSettingsPane(),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // For desktop, render the original sidebar layout
     return Row(
       children: [
         _SettingsSidebar(
@@ -79,6 +123,8 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 }
+
+// ... Rest of the file remains unchanged ...
 
 class _SettingsHeader extends StatelessWidget {
   final VoidCallback onClose;
@@ -217,10 +263,10 @@ class _NavSection extends StatelessWidget {
           ),
         ),
         ...items.map((item) => _NavTile(
-          label: item['label']!,
-          isSelected: selectedId == item['id'],
-          onTap: () => onSelected(item['id']!),
-        )),
+              label: item['label']!,
+              isSelected: selectedId == item['id'],
+              onTap: () => onSelected(item['id']!),
+            )),
       ],
     );
   }

@@ -7,6 +7,6 @@ class AppConfig {
   // Use the domain without trailing slash, e.g. http://localhost:8080 or https://myserver.com
 //  static const String apiDomain = "https://chat.sarahsforge.dev:443";
 //  static const String wsDomain = "wss://chat.sarahsforge.dev:443";
-  static const String apiDomain = "http://localhost:8081";
-  static const String wsDomain = "ws://localhost:8081";
+  static const String apiDomain = "http://192.168.254.19:8081";
+  static const String wsDomain = "ws://192.168.254.19:8081";
 }
