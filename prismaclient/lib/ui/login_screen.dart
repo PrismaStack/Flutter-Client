@@ -1,3 +1,4 @@
+// ui/login_screen.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -5,8 +6,8 @@ import '../../models.dart'; // Import User model
 import '../../config.dart';
 
 class LoginScreen extends StatefulWidget {
-  // UPDATED: Callback now expects a User object
-  final void Function(User) onLoginSuccess;
+  // CHANGED: Callback now expects a User and a Token string
+  final void Function(User, String) onLoginSuccess;
   const LoginScreen({super.key, required this.onLoginSuccess});
 
   @override
@@ -25,7 +26,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _switchMode() {
     setState(() {
-      _authMode = _authMode == AuthMode.login ? AuthMode.register : AuthMode.login;
+      _authMode =
+          _authMode == AuthMode.login ? AuthMode.register : AuthMode.login;
       _error = '';
     });
   }
@@ -40,11 +42,9 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     final isLogin = _authMode == AuthMode.login;
-    final url = Uri.parse(
-      isLogin
+    final url = Uri.parse(isLogin
         ? '${AppConfig.apiDomain}/api/login'
-        : '${AppConfig.apiDomain}/api/register'
-    );
+        : '${AppConfig.apiDomain}/api/register');
 
     try {
       final response = await http.post(
@@ -55,12 +55,17 @@ class _LoginScreenState extends State<LoginScreen> {
           'password': _password,
         }),
       );
+      // FIX: Server returns 200 for both successful login and registration.
       if (response.statusCode == 200) {
         if (isLogin) {
-          // On successful login, parse the user and call the callback
-          final userData = json.decode(response.body);
-          final user = User.fromJson(userData);
-          widget.onLoginSuccess(user);
+          // FIX: On successful login, parse the user AND the token.
+          // The server now returns a flat JSON object with user data and the token.
+          final responseData = json.decode(response.body);
+          final user = User.fromJson(responseData);
+          final token = responseData['token'] as String;
+
+          // Call the callback with both user and token.
+          widget.onLoginSuccess(user, token);
         } else {
           // On successful register, switch to login mode with a message
           setState(() {
@@ -109,12 +114,14 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.bubble_chart, color: Colors.tealAccent, size: 56),
+                const Icon(Icons.bubble_chart, color: Colors.tealAccent, size: 56),
                 const SizedBox(height: 16),
                 Text(
                   isLogin ? "Sign In to Prisma" : "Create your Prisma Account",
                   style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold, fontSize: 22),
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 22),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
@@ -125,7 +132,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     labelStyle: const TextStyle(color: Colors.tealAccent),
                     filled: true,
                     fillColor: Colors.white10,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                   style: const TextStyle(color: Colors.white),
                   validator: (val) {
@@ -144,7 +152,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     labelStyle: const TextStyle(color: Colors.tealAccent),
                     filled: true,
                     fillColor: Colors.white10,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                   style: const TextStyle(color: Colors.white),
                   obscureText: true,
@@ -158,8 +167,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 18),
                 if (_error.isNotEmpty)
-                  Text(_error,
-                    style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+                  Text(
+                    _error,
+                    style:
+                        const TextStyle(color: Colors.redAccent, fontSize: 13),
                     textAlign: TextAlign.center,
                   ),
                 if (_error.isNotEmpty) const SizedBox(height: 10),
@@ -170,14 +181,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       backgroundColor: Colors.tealAccent,
                       foregroundColor: Colors.black87,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      textStyle: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     onPressed: _loading ? null : _submit,
                     child: _loading
                         ? const SizedBox(
-                            width: 22, height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.teal),
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.teal),
                           )
                         : Text(isLogin ? "Sign In" : "Register"),
                   ),

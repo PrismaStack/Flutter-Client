@@ -6,12 +6,16 @@ import 'appearance_settings_pane.dart';
 
 class SettingsView extends StatefulWidget {
   User currentUser;
+  // CHANGED: Add token property
+  final String token;
   final VoidCallback onClose;
   final VoidCallback onLogout;
 
   SettingsView({
     super.key,
     required this.currentUser,
+    // CHANGED: Add token to constructor
+    required this.token,
     required this.onClose,
     required this.onLogout,
   });
@@ -43,6 +47,8 @@ class _SettingsViewState extends State<SettingsView> {
       case 'my_account':
         return AccountSettingsPane(
           user: widget.currentUser,
+          // FIX: Pass token to AccountSettingsPane
+          token: widget.token,
           onAvatarUpdated: _onAvatarUpdated,
         );
       case 'appearance':
@@ -89,6 +95,8 @@ class _SettingsViewState extends State<SettingsView> {
             children: [
               AccountSettingsPane(
                 user: widget.currentUser,
+                // FIX: Pass token to AccountSettingsPane
+                token: widget.token,
                 onAvatarUpdated: _onAvatarUpdated,
               ),
               const AppearanceSettingsPane(),

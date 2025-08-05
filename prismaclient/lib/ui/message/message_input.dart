@@ -1,4 +1,3 @@
-// ui//message/message_input.dart
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -12,12 +11,16 @@ class MessageInput extends StatefulWidget {
   final String channelName;
   final Future<void> Function(String message) onSend;
   final User currentUser;
+  // CHANGED: Add token property
+  final String token;
 
   const MessageInput({
     super.key,
     required this.channelName,
     required this.onSend,
     required this.currentUser,
+    // CHANGED: Add token to constructor
+    required this.token,
   });
 
   @override
@@ -74,6 +77,9 @@ class _MessageInputState extends State<MessageInput> {
         'POST',
         Uri.parse('${AppConfig.apiDomain}/api/upload-file'),
       );
+      // FIX: Add Authorization header to the multipart request
+      request.headers['Authorization'] = 'Bearer ${widget.token}';
+
       request.fields['user_id'] = widget.currentUser.id.toString();
 
       if (kIsWeb) {

@@ -14,11 +14,15 @@ import 'settings/settings_view.dart';
 /// provide an AppBar and swipeable drawers for channels and user lists.
 class PrismaMobileHome extends StatefulWidget {
   final User currentUser;
+  // CHANGED: Add token property
+  final String token;
   final VoidCallback onLogout;
 
   const PrismaMobileHome({
     super.key,
     required this.currentUser,
+    // CHANGED: Add token to constructor
+    required this.token,
     required this.onLogout,
   });
 
@@ -32,7 +36,8 @@ class _PrismaMobileHomeState extends State<PrismaMobileHome> {
 
   // State logic for WebSocket and online users, similar to the desktop view
   WebSocketChannel? _channel;
-  final StreamController<dynamic> _streamController = StreamController.broadcast();
+  final StreamController<dynamic> _streamController =
+      StreamController.broadcast();
   List<User>? _onlineUsers;
 
   @override
@@ -50,8 +55,9 @@ class _PrismaMobileHomeState extends State<PrismaMobileHome> {
 
   void _connectWebSocket() {
     try {
+      // FIX: Use the token for a secure WebSocket connection instead of user_id.
       _channel = WebSocketChannel.connect(
-        Uri.parse('${AppConfig.wsDomain}/api/ws?user_id=${widget.currentUser.id}'),
+        Uri.parse('${AppConfig.wsDomain}/api/ws?token=${widget.token}'),
       );
 
       _channel!.stream.listen(
@@ -62,14 +68,16 @@ class _PrismaMobileHomeState extends State<PrismaMobileHome> {
             final payload = decodedWrapper['payload'];
             if (payload is List && mounted) {
               setState(() {
-                _onlineUsers = payload.map<User>((data) => User.fromJson(data)).toList();
+                _onlineUsers =
+                    payload.map<User>((data) => User.fromJson(data)).toList();
               });
             }
           }
           _streamController.add(message);
         },
         onDone: () {
-          if (mounted) Future.delayed(const Duration(seconds: 5), _connectWebSocket);
+          if (mounted)
+            Future.delayed(const Duration(seconds: 5), _connectWebSocket);
         },
         onError: (error) {
           _streamController.addError(error);
@@ -98,6 +106,8 @@ class _PrismaMobileHomeState extends State<PrismaMobileHome> {
     Navigator.of(context).push(MaterialPageRoute(
       builder: (context) => SettingsView(
         currentUser: widget.currentUser,
+        // FIX: Pass token to settings view
+        token: widget.token,
         onClose: () => Navigator.of(context).pop(),
         onLogout: () {
           // Pop the settings screen first, then log out
@@ -126,6 +136,8 @@ class _PrismaMobileHomeState extends State<PrismaMobileHome> {
       ),
       drawer: LeftDrawer(
         user: widget.currentUser,
+        // FIX: Pass token to left drawer
+        token: widget.token,
         onChannelSelected: _handleChannelSelected,
         onSettingsTapped: _navigateToSettings,
       ),
@@ -139,6 +151,8 @@ class _PrismaMobileHomeState extends State<PrismaMobileHome> {
               key: ValueKey(_selectedChannel!.id),
               channel: _selectedChannel!,
               currentUser: widget.currentUser,
+              // FIX: Pass token to chat view
+              token: widget.token,
               webSocketStream: _streamController.stream,
             ),
     );
@@ -149,9 +163,11 @@ class _PrismaMobileHomeState extends State<PrismaMobileHome> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.chat_bubble_outline, size: 60, color: Colors.tealAccent.withOpacity(0.5)),
+          Icon(Icons.chat_bubble_outline,
+              size: 60, color: Colors.tealAccent.withOpacity(0.5)),
           const SizedBox(height: 20),
-          const Text('Select a channel to start chatting', style: TextStyle(fontSize: 18, color: Colors.white54)),
+          const Text('Select a channel to start chatting',
+              style: TextStyle(fontSize: 18, color: Colors.white54)),
           const SizedBox(height: 10),
           TextButton(
             onPressed: () => _scaffoldKey.currentState?.openDrawer(),

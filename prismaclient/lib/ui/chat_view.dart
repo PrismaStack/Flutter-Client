@@ -1,5 +1,3 @@
-// ui//chat_view.dart
-
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -13,13 +11,16 @@ import 'message/message_tile.dart';
 class ChatView extends StatefulWidget {
   final Channel channel;
   final User currentUser;
-  // **NEW**: Accept the shared WebSocket stream
+  // CHANGED: Add token property
+  final String token;
   final Stream<dynamic> webSocketStream;
 
   const ChatView({
     super.key,
     required this.channel,
     required this.currentUser,
+    // CHANGED: Add token to constructor
+    required this.token,
     required this.webSocketStream,
   });
 
@@ -31,8 +32,13 @@ class _ChatViewState extends State<ChatView> {
   List<Message> _messages = [];
   bool _isLoading = true;
   String? _error;
-  // **NEW**: A subscription to manage listening to the stream
   StreamSubscription? _streamSubscription;
+
+  // FIX: Helper to create authenticated headers
+  Map<String, String> get _authHeaders => {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${widget.token}',
+      };
 
   @override
   void initState() {
@@ -46,16 +52,14 @@ class _ChatViewState extends State<ChatView> {
     super.didUpdateWidget(oldWidget);
     if (widget.channel.id != oldWidget.channel.id) {
       _fetchMessages();
-      // No need to change WebSocket connection, just re-evaluate incoming messages
     }
     if (widget.webSocketStream != oldWidget.webSocketStream) {
-      _listenToWebSocket(); // Re-subscribe if the stream instance changes
+      _listenToWebSocket();
     }
   }
 
-  // **REFACTORED**: This now listens to the stream passed via props
   void _listenToWebSocket() {
-    _streamSubscription?.cancel(); // Cancel any old subscription
+    _streamSubscription?.cancel();
     _streamSubscription = widget.webSocketStream.listen((message) {
       final decodedWrapper = json.decode(message);
       final event = decodedWrapper['event'];
@@ -87,8 +91,10 @@ class _ChatViewState extends State<ChatView> {
       _messages = [];
     });
     try {
+      // FIX: Add authorization header to the request
       final response = await http.get(
         Uri.parse('${AppConfig.apiDomain}/api/channels/${widget.channel.id}/messages'),
+        headers: {'Authorization': 'Bearer ${widget.token}'},
       );
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -119,20 +125,21 @@ class _ChatViewState extends State<ChatView> {
   Future<void> _sendMessage(String content) async {
     if (content.trim().isEmpty) return;
     try {
+      // FIX: Add authorization header to the request
       final response = await http.post(
         Uri.parse('${AppConfig.apiDomain}/api/messages'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _authHeaders,
         body: jsonEncode({
           'content': content,
           'channel_id': widget.channel.id,
-          'user_id': widget.currentUser.id,
+          // 'user_id' is no longer needed in the body,
+          // the server gets it from the token
         }),
       );
 
       if (response.statusCode != 201) {
         throw Exception('Failed to send message: ${response.body}');
       }
-      // No need to refresh; update arrives via WebSocket
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -153,8 +160,9 @@ class _ChatViewState extends State<ChatView> {
           MessageInput(
             channelName: widget.channel.name,
             onSend: _sendMessage,
-            // MODIFIED: Pass the current user to the input widget
             currentUser: widget.currentUser,
+            // FIX: Pass token down to the MessageInput for file uploads
+            token: widget.token,
           ),
         ],
       ),
@@ -188,7 +196,6 @@ class _ChatViewState extends State<ChatView> {
       itemBuilder: (context, index) {
         final message = _messages[index];
         final bool isMe = message.userId == widget.currentUser.id;
-        // The MessageTile already supports avatars, this will now work correctly
         return MessageTile(
           username: message.username,
           time: DateFormat('h:mm a').format(message.createdAt.toLocal()),
@@ -244,7 +251,6 @@ class _ChatViewState extends State<ChatView> {
 
   @override
   void dispose() {
-    // **MODIFIED**: Cancel the subscription, don't close the channel
     _streamSubscription?.cancel();
     super.dispose();
   }

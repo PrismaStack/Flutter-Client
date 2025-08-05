@@ -6,12 +6,16 @@ import '../../../config.dart';
 
 class LeftDrawer extends StatefulWidget {
   final User user;
+  // CHANGED: Add token property
+  final String token;
   final void Function(Channel channel) onChannelSelected;
   final VoidCallback onSettingsTapped;
 
   const LeftDrawer({
     super.key,
     required this.user,
+    // CHANGED: Add token to constructor
+    required this.token,
     required this.onChannelSelected,
     required this.onSettingsTapped,
   });
@@ -32,6 +36,12 @@ class _LeftDrawerState extends State<LeftDrawer> {
     _fetchData();
   }
 
+  // FIX: Helper to create authenticated headers
+  Map<String, String> get _authHeaders => {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${widget.token}',
+      };
+
   Future<void> _fetchData() async {
     if (!mounted) return;
     setState(() {
@@ -39,8 +49,11 @@ class _LeftDrawerState extends State<LeftDrawer> {
       _error = null;
     });
     try {
-      final response =
-          await http.get(Uri.parse('${AppConfig.apiDomain}/api/categories'));
+      // FIX: Add authorization header to the request
+      final response = await http.get(
+        Uri.parse('${AppConfig.apiDomain}/api/categories'),
+        headers: {'Authorization': 'Bearer ${widget.token}'},
+      );
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         final categories =
@@ -77,9 +90,10 @@ class _LeftDrawerState extends State<LeftDrawer> {
   Future<void> _updateOrder(
       String endpoint, List<Map<String, int>> orderData) async {
     try {
+      // FIX: Add authorization header to the request
       final response = await http.post(
         Uri.parse('${AppConfig.apiDomain}/api/reorder/$endpoint'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _authHeaders,
         body: json.encode(orderData),
       );
       if (response.statusCode != 200) {
@@ -120,12 +134,13 @@ class _LeftDrawerState extends State<LeftDrawer> {
     });
   }
 
-  void _moveChannelToCategory(Channel channel, int fromCategoryId, int toCategoryId) async {
+  Future<void> _moveChannelToCategory(Channel channel, int fromCategoryId, int toCategoryId) async {
     if (fromCategoryId == toCategoryId) return;
     try {
+      // FIX: Add authorization header to the request
       final response = await http.put(
         Uri.parse('${AppConfig.apiDomain}/api/channels/${channel.id}'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _authHeaders,
         body: json.encode({'category_id': toCategoryId}),
       );
       if (response.statusCode == 200) {
@@ -219,7 +234,7 @@ class _LeftDrawerState extends State<LeftDrawer> {
               onPressed: () async {
                 if (selectedCategoryId != null) {
                   Navigator.of(context).pop();
-                  _moveChannelToCategory(channel, fromCategory.id, selectedCategoryId!);
+                  await _moveChannelToCategory(channel, fromCategory.id, selectedCategoryId!);
                 }
               },
               child: const Text('Move'),
@@ -232,9 +247,10 @@ class _LeftDrawerState extends State<LeftDrawer> {
 
   Future<void> _createChannel(String name, int categoryId) async {
     try {
+      // FIX: Add authorization header to the request
       final response = await http.post(
         Uri.parse('${AppConfig.apiDomain}/api/channels'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _authHeaders,
         body: jsonEncode({'name': name, 'category_id': categoryId}),
       );
       if (response.statusCode == 201) {
@@ -253,9 +269,10 @@ class _LeftDrawerState extends State<LeftDrawer> {
 
   Future<int?> _createCategory(String name) async {
     try {
+      // FIX: Add authorization header to the request
       final response = await http.post(
         Uri.parse('${AppConfig.apiDomain}/api/categories'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _authHeaders,
         body: jsonEncode({'name': name}),
       );
       if (response.statusCode == 201) {
@@ -457,9 +474,10 @@ class _LeftDrawerState extends State<LeftDrawer> {
   Future<void> _renameChannel(int channelId, String newName) async {
     if (newName.trim().isEmpty) return;
     try {
+      // FIX: Add authorization header to the request
       final response = await http.put(
         Uri.parse('${AppConfig.apiDomain}/api/channels/$channelId'),
-        headers: {'Content-Type': 'application/json'},
+        headers: _authHeaders,
         body: json.encode({'name': newName}),
       );
       if (response.statusCode == 200) {
@@ -479,8 +497,10 @@ class _LeftDrawerState extends State<LeftDrawer> {
 
   Future<void> _deleteChannel(int channelId) async {
     try {
+      // FIX: Add authorization header to the request
       final response = await http.delete(
         Uri.parse('${AppConfig.apiDomain}/api/channels/$channelId'),
+        headers: {'Authorization': 'Bearer ${widget.token}'},
       );
       if (response.statusCode == 200) {
         await _fetchData();

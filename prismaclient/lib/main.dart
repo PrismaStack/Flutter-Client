@@ -19,16 +19,22 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   User? _currentUser;
+  // CHANGED: Add state to hold the authentication token
+  String? _token;
 
-  void _handleLoginSuccess(User user) {
+  // CHANGED: The login handler now accepts the user and their token
+  void _handleLoginSuccess(User user, String token) {
     setState(() {
       _currentUser = user;
+      _token = token;
     });
   }
 
+  // CHANGED: Logout should clear both the user and the token
   void _handleLogout() {
     setState(() {
       _currentUser = null;
+      _token = null;
     });
   }
 
@@ -37,14 +43,17 @@ class _MyAppState extends State<MyApp> {
     final isMobile = defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS;
 
+    // FIX: Pass the token down to the main app views
     if (isMobile) {
       return PrismaMobileHome(
         currentUser: _currentUser!,
+        token: _token!,
         onLogout: _handleLogout,
       );
     } else {
       return PrismaDesktopHome(
         currentUser: _currentUser!,
+        token: _token!,
         onLogout: _handleLogout,
       );
     }
@@ -62,7 +71,9 @@ class _MyAppState extends State<MyApp> {
         fontFamily: 'Inter',
         useMaterial3: true,
       ),
-      home: _currentUser != null
+      // CHANGED: Check for user AND token to determine if logged in.
+      // Pass the updated login handler to the LoginScreen.
+      home: _currentUser != null && _token != null
           ? _buildHomeScreen() // Use the helper to select the view
           : LoginScreen(onLoginSuccess: _handleLoginSuccess),
     );

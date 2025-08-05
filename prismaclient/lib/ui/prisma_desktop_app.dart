@@ -1,3 +1,4 @@
+// ui/prisma_desktop_app.dart
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -34,11 +35,15 @@ class PrismaDesktopApp extends StatelessWidget {
 
 class PrismaDesktopHome extends StatefulWidget {
   final User currentUser;
+  // CHANGED: Add token property
+  final String token;
   final VoidCallback onLogout;
 
   const PrismaDesktopHome({
     super.key,
     required this.currentUser,
+    // CHANGED: Add token to constructor
+    required this.token,
     required this.onLogout,
   });
 
@@ -51,7 +56,8 @@ class _PrismaDesktopHomeState extends State<PrismaDesktopHome> {
   bool _showSettings = false;
 
   WebSocketChannel? _channel;
-  final StreamController<dynamic> _streamController = StreamController.broadcast();
+  final StreamController<dynamic> _streamController =
+      StreamController.broadcast();
   List<User>? _onlineUsers;
 
   @override
@@ -62,8 +68,9 @@ class _PrismaDesktopHomeState extends State<PrismaDesktopHome> {
 
   void _connectWebSocket() {
     try {
+      // FIX: Use the token for a secure WebSocket connection instead of user_id.
       _channel = WebSocketChannel.connect(
-        Uri.parse('${AppConfig.wsDomain}/api/ws?user_id=${widget.currentUser.id}'),
+        Uri.parse('${AppConfig.wsDomain}/api/ws?token=${widget.token}'),
       );
 
       _channel!.stream.listen(
@@ -76,7 +83,8 @@ class _PrismaDesktopHomeState extends State<PrismaDesktopHome> {
             if (payload is List) {
               if (mounted) {
                 setState(() {
-                  _onlineUsers = payload.map<User>((data) => User.fromJson(data)).toList();
+                  _onlineUsers =
+                      payload.map<User>((data) => User.fromJson(data)).toList();
                 });
               }
             }
@@ -98,7 +106,7 @@ class _PrismaDesktopHomeState extends State<PrismaDesktopHome> {
         },
       );
     } catch (e) {
-      if(mounted) setState(() => _onlineUsers = []);
+      if (mounted) setState(() => _onlineUsers = []);
       _streamController.addError(e);
     }
   }
@@ -121,6 +129,8 @@ class _PrismaDesktopHomeState extends State<PrismaDesktopHome> {
       body: _showSettings
           ? SettingsView(
               currentUser: widget.currentUser,
+              // FIX: Pass token to settings view
+              token: widget.token,
               onClose: _toggleSettingsView,
               onLogout: widget.onLogout,
             )
@@ -128,6 +138,8 @@ class _PrismaDesktopHomeState extends State<PrismaDesktopHome> {
               children: [
                 LeftDrawer(
                   user: widget.currentUser,
+                  // FIX: Pass token to left drawer
+                  token: widget.token,
                   onChannelSelected: _handleChannelSelected,
                   onSettingsTapped: _toggleSettingsView,
                 ),
@@ -139,6 +151,8 @@ class _PrismaDesktopHomeState extends State<PrismaDesktopHome> {
                           key: ValueKey(_selectedChannel!.id),
                           channel: _selectedChannel!,
                           currentUser: widget.currentUser,
+                          // FIX: Pass token to chat view
+                          token: widget.token,
                           webSocketStream: _streamController.stream,
                         ),
                 ),

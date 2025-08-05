@@ -12,11 +12,15 @@ import 'dart:convert';
 class AccountSettingsPane extends StatefulWidget {
   final User user;
   final Function(String) onAvatarUpdated;
+  // CHANGED: Add token property
+  final String token;
 
   const AccountSettingsPane({
     super.key,
     required this.user,
     required this.onAvatarUpdated,
+    // CHANGED: Add token to constructor
+    required this.token,
   });
 
   @override
@@ -51,6 +55,8 @@ class _AccountSettingsPaneState extends State<AccountSettingsPane> {
         'POST',
         Uri.parse('${AppConfig.apiDomain}/api/upload-avatar'),
       );
+      // FIX: Add Authorization header to the multipart request
+      request.headers['Authorization'] = 'Bearer ${widget.token}';
 
       // ---- FIX for Web File Upload ----
       // Switched to a streaming approach for web to avoid a known platform issue.
